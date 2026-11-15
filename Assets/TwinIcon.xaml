@@ -1,16 +1,41 @@
 <DrawingImage xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
     <DrawingImage.Drawing>
         <DrawingGroup>
-            <GeometryDrawing Brush="#101E30" Geometry="M44,8 L212,8 Q248,8 248,44 L248,212 Q248,248 212,248 L44,248 Q8,248 8,212 L8,44 Q8,8 44,8 Z" />
-            <GeometryDrawing Brush="#1B3448" Geometry="M36,184 L220,184 L220,222 L36,222 Z" />
-            <GeometryDrawing Brush="#D8E4EB" Geometry="M40,178 L216,178 L216,190 L40,190 Z M48,190 L58,190 L58,218 L48,218 Z M198,190 L208,190 L208,218 L198,218 Z" />
-            <GeometryDrawing Brush="#65D9CD" Geometry="M156,140 L190,140 L190,174 L156,174 Z" />
-            <GeometryDrawing Brush="#EC8C43" Geometry="M52,154 L79,154 L84,174 L45,174 Z M57,152 L57,105 L79,105 L79,152 Z M66,98 L111,50 L128,66 L83,114 Z M123,51 L174,96 L159,114 L108,69 Z" />
-            <GeometryDrawing Brush="#F6B474" Geometry="M65,99 L111,52 L118,59 L72,107 Z M125,56 L169,96 L163,103 L118,63 Z" />
-            <GeometryDrawing Brush="#253B4C" Geometry="M48,105 A20,20 0 1 1 88,105 A20,20 0 1 1 48,105 M96,60 A21,21 0 1 1 138,60 A21,21 0 1 1 96,60 M149,105 A18,18 0 1 1 185,105 A18,18 0 1 1 149,105" />
-            <GeometryDrawing Brush="#D8E4EB" Geometry="M58,105 A10,10 0 1 1 78,105 A10,10 0 1 1 58,105 M107,60 A10,10 0 1 1 127,60 A10,10 0 1 1 107,60 M159,105 A8,8 0 1 1 175,105 A8,8 0 1 1 159,105" />
-            <GeometryDrawing Brush="#D8E4EB" Geometry="M163,119 L171,119 L171,131 L185,131 L185,137 L150,137 L150,131 L163,131 Z" />
-            <GeometryDrawing Brush="#72A5B6" Geometry="M65,197 L78,197 L78,204 L65,204 Z M94,197 L107,197 L107,204 L94,204 Z M123,197 L136,197 L136,204 L123,204 Z M152,197 L165,197 L165,204 L152,204 Z M181,197 L194,197 L194,204 L181,204 Z" />
+            <GeometryDrawing Brush="#102333">
+                <GeometryDrawing.Geometry>
+                    <RectangleGeometry Rect="0,0,256,256" RadiusX="56" RadiusY="56" />
+                </GeometryDrawing.Geometry>
+            </GeometryDrawing>
+
+            <GeometryDrawing Geometry="M76,180 L76,126 L128,74 L180,126 L180,144">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#63DED0" Thickness="20"
+                         StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+
+            <GeometryDrawing Brush="#63DED0">
+                <GeometryDrawing.Geometry>
+                    <GeometryGroup>
+                        <EllipseGeometry Center="76,126" RadiusX="15" RadiusY="15" />
+                        <EllipseGeometry Center="128,74" RadiusX="15" RadiusY="15" />
+                    </GeometryGroup>
+                </GeometryDrawing.Geometry>
+            </GeometryDrawing>
+
+            <GeometryDrawing Geometry="M160,146 L160,164 L200,164 L200,146">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#63DED0" Thickness="12"
+                         StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+
+            <GeometryDrawing Geometry="M52,190 L104,190">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#63DED0" Thickness="16"
+                         StartLineCap="Round" EndLineCap="Round" />
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
         </DrawingGroup>
     </DrawingImage.Drawing>
 </DrawingImage>

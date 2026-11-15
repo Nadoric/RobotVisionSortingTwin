@@ -1,4 +1,10 @@
-# 机器人视觉沙盘本机消息协议 v1
+# 机器人视觉沙盘本机消息协议
+
+本项目同时提供两条独立通道：下文的 v1 单向遥测，以及新增的 `RobotVisionSortingTwin.Execution.v1`
+双向仿真执行。双向执行接受带件编号的产品命令，按实际仿真物件状态返回 accepted、executing、completed，
+急停、暂停、复位、满仓、断线时返回或保留异常；不会控制实体机器人。
+完整双向规范和样例步骤见平台的 [联动说明](https://github.com/Nadoric/DigitalTwinIndustrialAutomationPlatform.NativeWpf/blob/main/docs/TWIN_LINK.md)。
+双向通道连接时，下述单向采样只作观察，不创建第二件物件；单向模式的新版消息支持 ItemId 去重。
 
 此协议为单向观察协议。发送端不引用沙盘程序集，接收端不引用平台程序集。任意实现同一协议的程序均可发送遥测。
 

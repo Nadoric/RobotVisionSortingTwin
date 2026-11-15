@@ -43,6 +43,7 @@ namespace RobotVisionSortingTwin
             : Math.Clamp((Tick - _robotStart) * StepSeconds / _activeCycle, 0, 1);
         public int InFlight => _items.Count + _pendingItems.Count;
         public int Pending => _pendingItems.Count;
+        public event Action<int, string>? ExternalItemStateChanged;
 
         /// <summary>识别函数接收帧生成条件，返回实际视觉判定；状态机不自行猜测类别。</summary>
         public SortingSimulation(Func<TwinProductKind, int, bool, TwinInspection> inspect)
@@ -99,6 +100,12 @@ namespace RobotVisionSortingTwin
         /// <summary>外部采样按次展示；最多保留 64 件在途工件，溢出明确计数而不默默丢弃。</summary>
         public bool ReceiveExternal(TwinInspection inspection)
         {
+            return ReceiveExternal(inspection, out _);
+        }
+
+        public bool ReceiveExternal(TwinInspection inspection, out int simulationId)
+        {
+            simulationId = 0;
             if (!LiveMode)
             {
                 return false;
@@ -113,6 +120,7 @@ namespace RobotVisionSortingTwin
             }
 
             Received++;
+            simulationId = Received;
             Inspected++;
             _pendingItems.Enqueue(new TwinItem
             {
@@ -160,6 +168,10 @@ namespace RobotVisionSortingTwin
                 _items.Remove(item);
                 ActiveItem = null;
                 AddEvent("工业机器人", $"工件 #{item.Id:D3} → 料仓 {(char)('A' + (int)item.Route)}");
+                if (LiveMode)
+                {
+                    ExternalItemStateChanged?.Invoke(item.Id, "completed");
+                }
             }
 
             var waiting = _items.FirstOrDefault(item => item.Stage == TwinItemStage.Conveyor
@@ -176,6 +188,10 @@ namespace RobotVisionSortingTwin
                 ActiveItem = waiting;
                 _robotStart = Tick;
                 _activeCycle = RobotCycle;
+                if (LiveMode)
+                {
+                    ExternalItemStateChanged?.Invoke(waiting.Id, "executing");
+                }
             }
 
             BeltTravel += BeltSpeed * StepSeconds;

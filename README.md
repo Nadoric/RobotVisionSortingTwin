@@ -1,5 +1,13 @@
 # 机器人视觉分拣三维数字孪生沙盘
 
+应用已增加机械臂与输送线图标，设备外观细化为带型材、滚筒、电机、关节壳体、线缆、HMI 和网格围护的工业工位。
+详见 [设备外观说明](docs/APPEARANCE.md) 和 [图标资源](Assets/README.md)。
+
+已增加与 NativeWpf 平台的双向仿真执行。平台可用图片序列识别，无需 PLC、实体相机或机器人；
+沙盘按实际仿真入仓返回完成反馈，料仓映射自动保存，顶部显示执行状态。
+启用“跟随平台”，连接平台并配置产品料仓后即可运行。
+操作步骤与现成样例见 [双向联动说明](https://github.com/Nadoric/DigitalTwinIndustrialAutomationPlatform.NativeWpf/blob/main/docs/TWIN_LINK.md)。
+
 独立 C# / WPF / .NET 10 桌面程序，参考 [mrf-shiftlab](https://github.com/agentthink/mrf-shiftlab) 的三维沙盘、设备选择、参数干预和时间轴交互思路，针对工业相机识别与工业机器人产品分拣重新实现。
 
 不引用原平台项目，不依赖 OpenCV、浏览器、WebView、第三方三维库、外部模型或在线资源。所有厂房与设备几何由 C# 创建。原平台和沙盘分别编译、分别运行，通过公开的本机消息协议联动。

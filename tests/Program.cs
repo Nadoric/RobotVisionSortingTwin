@@ -39,6 +39,18 @@ internal static class Program
 
     public static async Task Main(string[] args)
     {
+        if (args is ["--generate-icon", var iconDirectory])
+        {
+            SceneAssetBuilder.Build(iconDirectory);
+            return;
+        }
+        if (args is ["--execution-host", var pipeName])
+        {
+            await ExecutionChecks.HostAsync(pipeName);
+            return;
+        }
+
+        _checks += ExecutionChecks.Run();
         if (args is ["--platform-sender", var senderExecutable])
         {
             await VerifyExternalPublisherAsync(senderExecutable);
@@ -359,6 +371,26 @@ internal static class Program
                     encoder.Frames.Add(BitmapFrame.Create(bitmap));
                     using var stream = File.Create(Path.Combine(output,
                         $"sorting-twin-{size.Width:0}.png"));
+                    encoder.Save(stream);
+                }
+
+                foreach (string device in new[] { "ROBOT-01", "CAM-01", "BELT-01" })
+                {
+                    window.Simulation.Seek(23.5);
+                    var scene = (TwinScene)window.FindName("Scene");
+                    scene.SelectDevice(device);
+                    scene.SetView("focus");
+                    window.RefreshVisuals();
+                    var content = (FrameworkElement)window.Content;
+                    var size = new Size(1560, 960);
+                    content.Measure(size);
+                    content.Arrange(new Rect(size));
+                    content.UpdateLayout();
+                    var bitmap = new RenderTargetBitmap(1560, 960, 96, 96, PixelFormats.Pbgra32);
+                    bitmap.Render(content);
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(output, $"industrial-{device}.png"));
                     encoder.Save(stream);
                 }
 

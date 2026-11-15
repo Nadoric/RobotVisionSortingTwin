@@ -35,6 +35,8 @@ namespace RobotVisionSortingTwin
         private double _lastTime;
         private double _accumulator;
         private Guid _lastRun;
+        private readonly HashSet<Guid> _displayedItems = [];
+        private readonly Queue<Guid> _displayedOrder = [];
         private long _lastSequence;
         private long _missingSamples;
         private long _duplicates;
@@ -48,6 +50,7 @@ namespace RobotVisionSortingTwin
         {
             _simulation = new SortingSimulation(_vision.Inspect);
             InitializeComponent();
+            InitializeExecution();
             _simulation.Reset();
             _ready = true;
             Scene.DeviceSelected += Scene_DeviceSelected;
@@ -64,11 +67,11 @@ namespace RobotVisionSortingTwin
                         return;
                     }
 
-                    ConnectionText.Text = state;
+                    ConnectionText.Text = _commands.IsConnected ? "平台已连接 · 双向仿真执行" : state;
                     if (!state.StartsWith("平台已连接", StringComparison.Ordinal))
                     {
                         _sourceRunning = false;
-                        if (_simulation.LiveMode)
+                        if (_simulation.LiveMode && !_commands.IsConnected)
                         {
                             _playing = false;
                         }
@@ -80,6 +83,7 @@ namespace RobotVisionSortingTwin
             {
                 _lastTime = _clock.Elapsed.TotalSeconds;
                 _server.Start();
+                _commands.Start();
                 _timer.Start();
             };
             RefreshVisuals();
@@ -91,7 +95,7 @@ namespace RobotVisionSortingTwin
             var now = _clock.Elapsed.TotalSeconds;
             var elapsed = Math.Clamp(now - _lastTime, 0, 0.2);
             _lastTime = now;
-            if (_simulation.LiveMode && _lastMessage != default
+            if (!_commands.IsConnected && _simulation.LiveMode && _lastMessage != default
                 && DateTimeOffset.UtcNow - _lastMessage > TimeSpan.FromSeconds(4))
             {
                 _sourceRunning = false;
@@ -105,6 +109,7 @@ namespace RobotVisionSortingTwin
                 while (_accumulator >= SortingSimulation.StepSeconds)
                 {
                     _simulation.Step();
+                    _execution.CheckHealth();
                     _accumulator -= SortingSimulation.StepSeconds;
                     if (_simulation.IsComplete)
                     {
@@ -149,6 +154,9 @@ namespace RobotVisionSortingTwin
 
                 Timeline.IsEnabled = !_simulation.LiveMode;
                 PlaybackSpeed.IsEnabled = !_simulation.LiveMode;
+                RouteA.IsEnabled = !_execution.HasPending;
+                RouteB.IsEnabled = !_execution.HasPending;
+                RouteC.IsEnabled = !_execution.HasPending;
                 FeedSlider.IsEnabled = !_simulation.LiveMode;
                 LightingCheck.IsEnabled = !_simulation.LiveMode;
                 SceneStatus.Text = _simulation.Alarm.Length > 0 ? _simulation.Alarm
@@ -199,6 +207,13 @@ namespace RobotVisionSortingTwin
             _sourceRunning = message.Running;
             ConnectionText.Text = message.Running ? "平台在线 · 自动识别运行中" : "平台在线 · 自动识别已停止";
             UpdateProductChoices(message.Products);
+            if (_commands.IsConnected)
+            {
+                // 双向模式只由带件编号的执行命令驱动物件，采样遥测仅供观察。
+                LinkDetails.Text = "双向执行联动：仿真物件由执行命令创建，采样不会重复上料。\n"
+                    + (message.Running ? "平台正在识别；完成反馈仅代表沙盘仿真完成。" : "平台识别已停止。");
+                return;
+            }
             if (!_simulation.LiveMode)
             {
                 return;
@@ -228,6 +243,8 @@ namespace RobotVisionSortingTwin
                 _lastSequence = 0;
                 _missingSamples = 0;
                 _duplicates = 0;
+                _displayedItems.Clear();
+                _displayedOrder.Clear();
                 _emergencyRequested = false;
                 SyncParameters();
             }
@@ -240,6 +257,20 @@ namespace RobotVisionSortingTwin
 
             _missingSamples += Math.Max(0, message.Sequence - _lastSequence - 1);
             _lastSequence = message.Sequence;
+            if (message.SupportsItemIdentity && (message.ItemId is not Guid itemIdentity
+                || !_displayedItems.Add(itemIdentity)))
+            {
+                return;
+            }
+
+            if (message.SupportsItemIdentity && message.ItemId is Guid queuedId)
+            {
+                _displayedOrder.Enqueue(queuedId);
+                if (_displayedOrder.Count > 4096)
+                {
+                    _displayedItems.Remove(_displayedOrder.Dequeue());
+                }
+            }
             var route = message.Status == "Recognized" && message.ProductId is { } productId
                 && _routes.TryGetValue(productId, out var mapped) ? mapped : TwinProductKind.Reject;
             var description = message.Status != "Recognized" ? $"{message.Status} · 进入复检"
@@ -298,7 +329,9 @@ namespace RobotVisionSortingTwin
             _refreshing = true;
             foreach (var combo in new[] { RouteA, RouteB, RouteC })
             {
-                var id = combo.SelectedValue is Guid previous ? previous : Guid.Empty;
+                int bin = combo == RouteA ? 0 : combo == RouteB ? 1 : 2;
+                var id = combo.SelectedValue is Guid previous && previous != Guid.Empty
+                    ? previous : _savedRouteIds[bin];
                 combo.ItemsSource = new[] { new TelemetryProduct(Guid.Empty, "（未映射）") }
                     .Concat(products).ToArray();
                 combo.SelectedValue = products.Any(product => product.Id == id) ? id : Guid.Empty;
@@ -346,6 +379,10 @@ namespace RobotVisionSortingTwin
             }
 
             _playing = !_playing;
+            if (!_playing)
+            {
+                _execution.Abort("沙盘已暂停，仿真物件保留，需复位后重试");
+            }
             _lastTime = _clock.Elapsed.TotalSeconds;
             _accumulator = 0;
             RefreshVisuals();
@@ -353,6 +390,7 @@ namespace RobotVisionSortingTwin
 
         private void Reset_Click(object sender, RoutedEventArgs e)
         {
+            _execution.Abort("操作员复位沙盘，当前仿真执行取消");
             _simulation.Reset(_simulation.LiveMode);
             _playing = _simulation.LiveMode && _sourceRunning;
             _accumulator = 0;
@@ -363,6 +401,7 @@ namespace RobotVisionSortingTwin
 
         private void Live_Click(object sender, RoutedEventArgs e)
         {
+            _execution.Abort("切换仿真模式，当前执行取消");
             _simulation.Reset(LiveCheck.IsChecked == true);
             _playing = _simulation.LiveMode && _sourceRunning;
             _lastRun = Guid.Empty;
@@ -414,6 +453,21 @@ namespace RobotVisionSortingTwin
             if (_ready && !_refreshing)
             {
                 RebuildRoutes();
+                var combos = new[] { RouteA, RouteB, RouteC };
+                for (int index = 0; index < combos.Length; index++)
+                {
+                    _savedRouteIds[index] = combos[index].SelectedValue is Guid id ? id : Guid.Empty;
+                }
+
+                try
+                {
+                    LinkRouteStore.Save(LinkRouteStore.DefaultPath,
+                        _routes.Select(route => new LinkRoute(route.Key, route.Value)).ToArray());
+                }
+                catch (Exception ex)
+                {
+                    LinkDetails.Text = "当前映射已生效，保存失败：" + ex.Message;
+                }
             }
         }
 
@@ -515,7 +569,8 @@ namespace RobotVisionSortingTwin
                     + $"节拍 {_simulation.RobotCycle:F2} s · 两连杆逆解与垂直末端动画。",
                 "BELT-01" => $"速度 {_simulation.BeltSpeed:F2} m/s · 在途 {_simulation.InFlight} 件。"
                     + "工件排队间距 0.85 m，待抓工件在取料位等待。",
-                "FEED-01" => _simulation.LiveMode ? "上料由平台采样消息驱动；一次采样生成一件展示工件。"
+                "FEED-01" => _commands.IsConnected ? "上料由平台逐件执行命令驱动；采样遥测不会重复创建物件。"
+                    : _simulation.LiveMode ? "上料由平台识别采样驱动；带件编号时按件去重。"
                     : $"间隔 {_simulation.FeedInterval:F2} s，86 s 后停止上料并等待清线。",
                 "REJECT-01" => $"复检累计 {_simulation.Rejected} 件。无法唯一识别或未映射产品进入复检。",
                 _ => "料仓满时暂停输送；清空料仓后继续。累计分拣数量不会因清仓减少。"
@@ -577,6 +632,8 @@ namespace RobotVisionSortingTwin
 
             _closing = true;
             _timer.Stop();
+            _execution.Abort("沙盘正在关闭，当前仿真执行取消");
+            await _commands.DisposeAsync();
             await _server.DisposeAsync();
             _allowClose = true;
             _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(Close));

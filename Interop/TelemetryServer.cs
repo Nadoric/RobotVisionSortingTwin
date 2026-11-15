@@ -19,6 +19,9 @@ namespace RobotVisionSortingTwin
         public string Status { get; set; } = string.Empty;
         public Guid? ProductId { get; set; }
         public string? ProductName { get; set; }
+        public Guid? ItemId { get; set; }
+        public bool SupportsItemIdentity { get; set; }
+        public string ExecutionDomain { get; set; } = "RobotTcp";
         public double? Area { get; set; }
         public double? Perimeter { get; set; }
         public bool Sent { get; set; }
